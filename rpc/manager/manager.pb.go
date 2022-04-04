@@ -566,9 +566,10 @@ type PreviewSpec struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Ingress        *IngressInfo `protobuf:"bytes,1,opt,name=ingress,proto3" json:"ingress,omitempty"`
-	DisplayBanner  bool         `protobuf:"varint,2,opt,name=display_banner,json=displayBanner,proto3" json:"display_banner,omitempty"`
-	PullRequestUrl string       `protobuf:"bytes,3,opt,name=pull_request_url,json=pullRequestUrl,proto3" json:"pull_request_url,omitempty"`
+	Ingress           *IngressInfo      `protobuf:"bytes,1,opt,name=ingress,proto3" json:"ingress,omitempty"`
+	DisplayBanner     bool              `protobuf:"varint,2,opt,name=display_banner,json=displayBanner,proto3" json:"display_banner,omitempty"`
+	PullRequestUrl    string            `protobuf:"bytes,3,opt,name=pull_request_url,json=pullRequestUrl,proto3" json:"pull_request_url,omitempty"`
+	AddRequestHeaders map[string]string `protobuf:"bytes,4,rep,name=add_request_headers,json=addRequestHeaders,proto3" json:"add_request_headers,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 }
 
 func (x *PreviewSpec) Reset() {
@@ -622,6 +623,13 @@ func (x *PreviewSpec) GetPullRequestUrl() string {
 		return x.PullRequestUrl
 	}
 	return ""
+}
+
+func (x *PreviewSpec) GetAddRequestHeaders() map[string]string {
+	if x != nil {
+		return x.AddRequestHeaders
+	}
+	return nil
 }
 
 type InterceptInfo struct {
@@ -2533,7 +2541,7 @@ var file_rpc_manager_manager_proto_rawDesc = []byte{
 	0x17, 0x0a, 0x07, 0x75, 0x73, 0x65, 0x5f, 0x74, 0x6c, 0x73, 0x18, 0x03, 0x20, 0x01, 0x28, 0x08,
 	0x52, 0x06, 0x75, 0x73, 0x65, 0x54, 0x6c, 0x73, 0x12, 0x16, 0x0a, 0x06, 0x6c, 0x35, 0x68, 0x6f,
 	0x73, 0x74, 0x18, 0x04, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x6c, 0x35, 0x68, 0x6f, 0x73, 0x74,
-	0x22, 0x9b, 0x01, 0x0a, 0x0b, 0x50, 0x72, 0x65, 0x76, 0x69, 0x65, 0x77, 0x53, 0x70, 0x65, 0x63,
+	0x22, 0xcb, 0x02, 0x0a, 0x0b, 0x50, 0x72, 0x65, 0x76, 0x69, 0x65, 0x77, 0x53, 0x70, 0x65, 0x63,
 	0x12, 0x3b, 0x0a, 0x07, 0x69, 0x6e, 0x67, 0x72, 0x65, 0x73, 0x73, 0x18, 0x01, 0x20, 0x01, 0x28,
 	0x0b, 0x32, 0x21, 0x2e, 0x74, 0x65, 0x6c, 0x65, 0x70, 0x72, 0x65, 0x73, 0x65, 0x6e, 0x63, 0x65,
 	0x2e, 0x6d, 0x61, 0x6e, 0x61, 0x67, 0x65, 0x72, 0x2e, 0x49, 0x6e, 0x67, 0x72, 0x65, 0x73, 0x73,
@@ -2542,7 +2550,18 @@ var file_rpc_manager_manager_proto_rawDesc = []byte{
 	0x02, 0x20, 0x01, 0x28, 0x08, 0x52, 0x0d, 0x64, 0x69, 0x73, 0x70, 0x6c, 0x61, 0x79, 0x42, 0x61,
 	0x6e, 0x6e, 0x65, 0x72, 0x12, 0x28, 0x0a, 0x10, 0x70, 0x75, 0x6c, 0x6c, 0x5f, 0x72, 0x65, 0x71,
 	0x75, 0x65, 0x73, 0x74, 0x5f, 0x75, 0x72, 0x6c, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0e,
-	0x70, 0x75, 0x6c, 0x6c, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x55, 0x72, 0x6c, 0x22, 0x92,
+	0x70, 0x75, 0x6c, 0x6c, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x55, 0x72, 0x6c, 0x12, 0x68,
+	0x0a, 0x13, 0x61, 0x64, 0x64, 0x5f, 0x72, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x5f, 0x68, 0x65,
+	0x61, 0x64, 0x65, 0x72, 0x73, 0x18, 0x04, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x38, 0x2e, 0x74, 0x65,
+	0x6c, 0x65, 0x70, 0x72, 0x65, 0x73, 0x65, 0x6e, 0x63, 0x65, 0x2e, 0x6d, 0x61, 0x6e, 0x61, 0x67,
+	0x65, 0x72, 0x2e, 0x50, 0x72, 0x65, 0x76, 0x69, 0x65, 0x77, 0x53, 0x70, 0x65, 0x63, 0x2e, 0x41,
+	0x64, 0x64, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x48, 0x65, 0x61, 0x64, 0x65, 0x72, 0x73,
+	0x45, 0x6e, 0x74, 0x72, 0x79, 0x52, 0x11, 0x61, 0x64, 0x64, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
+	0x74, 0x48, 0x65, 0x61, 0x64, 0x65, 0x72, 0x73, 0x1a, 0x44, 0x0a, 0x16, 0x41, 0x64, 0x64, 0x52,
+	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x48, 0x65, 0x61, 0x64, 0x65, 0x72, 0x73, 0x45, 0x6e, 0x74,
+	0x72, 0x79, 0x12, 0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52,
+	0x03, 0x6b, 0x65, 0x79, 0x12, 0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x02, 0x20,
+	0x01, 0x28, 0x09, 0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01, 0x22, 0x92,
 	0x06, 0x0a, 0x0d, 0x49, 0x6e, 0x74, 0x65, 0x72, 0x63, 0x65, 0x70, 0x74, 0x49, 0x6e, 0x66, 0x6f,
 	0x12, 0x37, 0x0a, 0x04, 0x73, 0x70, 0x65, 0x63, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x23,
 	0x2e, 0x74, 0x65, 0x6c, 0x65, 0x70, 0x72, 0x65, 0x73, 0x65, 0x6e, 0x63, 0x65, 0x2e, 0x6d, 0x61,
@@ -2994,7 +3013,7 @@ func file_rpc_manager_manager_proto_rawDescGZIP() []byte {
 }
 
 var file_rpc_manager_manager_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_rpc_manager_manager_proto_msgTypes = make([]protoimpl.MessageInfo, 40)
+var file_rpc_manager_manager_proto_msgTypes = make([]protoimpl.MessageInfo, 41)
 var file_rpc_manager_manager_proto_goTypes = []interface{}{
 	(InterceptDispositionType)(0),     // 0: telepresence.manager.InterceptDispositionType
 	(*ClientInfo)(nil),                // 1: telepresence.manager.ClientInfo
@@ -3031,109 +3050,111 @@ var file_rpc_manager_manager_proto_goTypes = []interface{}{
 	(*ClusterInfo)(nil),               // 32: telepresence.manager.ClusterInfo
 	(*AgentInfo_Mechanism)(nil),       // 33: telepresence.manager.AgentInfo.Mechanism
 	nil,                               // 34: telepresence.manager.AgentInfo.EnvironmentEntry
-	nil,                               // 35: telepresence.manager.InterceptInfo.HeadersEntry
-	nil,                               // 36: telepresence.manager.InterceptInfo.MetadataEntry
-	nil,                               // 37: telepresence.manager.ReviewInterceptRequest.HeadersEntry
-	nil,                               // 38: telepresence.manager.ReviewInterceptRequest.MetadataEntry
-	nil,                               // 39: telepresence.manager.LogsResponse.PodLogsEntry
-	nil,                               // 40: telepresence.manager.LogsResponse.PodYamlEntry
-	(*durationpb.Duration)(nil),       // 41: google.protobuf.Duration
-	(*emptypb.Empty)(nil),             // 42: google.protobuf.Empty
+	nil,                               // 35: telepresence.manager.PreviewSpec.AddRequestHeadersEntry
+	nil,                               // 36: telepresence.manager.InterceptInfo.HeadersEntry
+	nil,                               // 37: telepresence.manager.InterceptInfo.MetadataEntry
+	nil,                               // 38: telepresence.manager.ReviewInterceptRequest.HeadersEntry
+	nil,                               // 39: telepresence.manager.ReviewInterceptRequest.MetadataEntry
+	nil,                               // 40: telepresence.manager.LogsResponse.PodLogsEntry
+	nil,                               // 41: telepresence.manager.LogsResponse.PodYamlEntry
+	(*durationpb.Duration)(nil),       // 42: google.protobuf.Duration
+	(*emptypb.Empty)(nil),             // 43: google.protobuf.Empty
 }
 var file_rpc_manager_manager_proto_depIdxs = []int32{
 	33, // 0: telepresence.manager.AgentInfo.mechanisms:type_name -> telepresence.manager.AgentInfo.Mechanism
 	34, // 1: telepresence.manager.AgentInfo.environment:type_name -> telepresence.manager.AgentInfo.EnvironmentEntry
 	4,  // 2: telepresence.manager.PreviewSpec.ingress:type_name -> telepresence.manager.IngressInfo
-	3,  // 3: telepresence.manager.InterceptInfo.spec:type_name -> telepresence.manager.InterceptSpec
-	7,  // 4: telepresence.manager.InterceptInfo.client_session:type_name -> telepresence.manager.SessionInfo
-	5,  // 5: telepresence.manager.InterceptInfo.preview_spec:type_name -> telepresence.manager.PreviewSpec
-	0,  // 6: telepresence.manager.InterceptInfo.disposition:type_name -> telepresence.manager.InterceptDispositionType
-	35, // 7: telepresence.manager.InterceptInfo.headers:type_name -> telepresence.manager.InterceptInfo.HeadersEntry
-	36, // 8: telepresence.manager.InterceptInfo.metadata:type_name -> telepresence.manager.InterceptInfo.MetadataEntry
-	7,  // 9: telepresence.manager.AgentsRequest.session:type_name -> telepresence.manager.SessionInfo
-	2,  // 10: telepresence.manager.AgentInfoSnapshot.agents:type_name -> telepresence.manager.AgentInfo
-	6,  // 11: telepresence.manager.InterceptInfoSnapshot.intercepts:type_name -> telepresence.manager.InterceptInfo
-	7,  // 12: telepresence.manager.CreateInterceptRequest.session:type_name -> telepresence.manager.SessionInfo
-	3,  // 13: telepresence.manager.CreateInterceptRequest.intercept_spec:type_name -> telepresence.manager.InterceptSpec
-	7,  // 14: telepresence.manager.UpdateInterceptRequest.session:type_name -> telepresence.manager.SessionInfo
-	5,  // 15: telepresence.manager.UpdateInterceptRequest.add_preview_domain:type_name -> telepresence.manager.PreviewSpec
-	7,  // 16: telepresence.manager.RemoveInterceptRequest2.session:type_name -> telepresence.manager.SessionInfo
-	7,  // 17: telepresence.manager.GetInterceptRequest.session:type_name -> telepresence.manager.SessionInfo
-	7,  // 18: telepresence.manager.ReviewInterceptRequest.session:type_name -> telepresence.manager.SessionInfo
-	0,  // 19: telepresence.manager.ReviewInterceptRequest.disposition:type_name -> telepresence.manager.InterceptDispositionType
-	37, // 20: telepresence.manager.ReviewInterceptRequest.headers:type_name -> telepresence.manager.ReviewInterceptRequest.HeadersEntry
-	38, // 21: telepresence.manager.ReviewInterceptRequest.metadata:type_name -> telepresence.manager.ReviewInterceptRequest.MetadataEntry
-	7,  // 22: telepresence.manager.RemainRequest.session:type_name -> telepresence.manager.SessionInfo
-	41, // 23: telepresence.manager.LogLevelRequest.duration:type_name -> google.protobuf.Duration
-	39, // 24: telepresence.manager.LogsResponse.pod_logs:type_name -> telepresence.manager.LogsResponse.PodLogsEntry
-	40, // 25: telepresence.manager.LogsResponse.pod_yaml:type_name -> telepresence.manager.LogsResponse.PodYamlEntry
-	7,  // 26: telepresence.manager.LookupHostRequest.session:type_name -> telepresence.manager.SessionInfo
-	7,  // 27: telepresence.manager.LookupHostAgentResponse.session:type_name -> telepresence.manager.SessionInfo
-	28, // 28: telepresence.manager.LookupHostAgentResponse.request:type_name -> telepresence.manager.LookupHostRequest
-	29, // 29: telepresence.manager.LookupHostAgentResponse.response:type_name -> telepresence.manager.LookupHostResponse
-	31, // 30: telepresence.manager.ClusterInfo.service_subnet:type_name -> telepresence.manager.IPNet
-	31, // 31: telepresence.manager.ClusterInfo.pod_subnets:type_name -> telepresence.manager.IPNet
-	42, // 32: telepresence.manager.Manager.Version:input_type -> google.protobuf.Empty
-	42, // 33: telepresence.manager.Manager.GetLicense:input_type -> google.protobuf.Empty
-	42, // 34: telepresence.manager.Manager.CanConnectAmbassadorCloud:input_type -> google.protobuf.Empty
-	42, // 35: telepresence.manager.Manager.GetCloudConfig:input_type -> google.protobuf.Empty
-	42, // 36: telepresence.manager.Manager.GetTelepresenceAPI:input_type -> google.protobuf.Empty
-	1,  // 37: telepresence.manager.Manager.ArriveAsClient:input_type -> telepresence.manager.ClientInfo
-	2,  // 38: telepresence.manager.Manager.ArriveAsAgent:input_type -> telepresence.manager.AgentInfo
-	16, // 39: telepresence.manager.Manager.Remain:input_type -> telepresence.manager.RemainRequest
-	7,  // 40: telepresence.manager.Manager.Depart:input_type -> telepresence.manager.SessionInfo
-	17, // 41: telepresence.manager.Manager.SetLogLevel:input_type -> telepresence.manager.LogLevelRequest
-	18, // 42: telepresence.manager.Manager.GetLogs:input_type -> telepresence.manager.GetLogsRequest
-	7,  // 43: telepresence.manager.Manager.WatchAgents:input_type -> telepresence.manager.SessionInfo
-	8,  // 44: telepresence.manager.Manager.WatchAgentsNS:input_type -> telepresence.manager.AgentsRequest
-	7,  // 45: telepresence.manager.Manager.WatchIntercepts:input_type -> telepresence.manager.SessionInfo
-	7,  // 46: telepresence.manager.Manager.WatchClusterInfo:input_type -> telepresence.manager.SessionInfo
-	11, // 47: telepresence.manager.Manager.CreateIntercept:input_type -> telepresence.manager.CreateInterceptRequest
-	13, // 48: telepresence.manager.Manager.RemoveIntercept:input_type -> telepresence.manager.RemoveInterceptRequest2
-	12, // 49: telepresence.manager.Manager.UpdateIntercept:input_type -> telepresence.manager.UpdateInterceptRequest
-	14, // 50: telepresence.manager.Manager.GetIntercept:input_type -> telepresence.manager.GetInterceptRequest
-	15, // 51: telepresence.manager.Manager.ReviewIntercept:input_type -> telepresence.manager.ReviewInterceptRequest
-	25, // 52: telepresence.manager.Manager.ClientTunnel:input_type -> telepresence.manager.ConnMessage
-	25, // 53: telepresence.manager.Manager.AgentTunnel:input_type -> telepresence.manager.ConnMessage
-	28, // 54: telepresence.manager.Manager.LookupHost:input_type -> telepresence.manager.LookupHostRequest
-	30, // 55: telepresence.manager.Manager.AgentLookupHostResponse:input_type -> telepresence.manager.LookupHostAgentResponse
-	7,  // 56: telepresence.manager.Manager.WatchLookupHost:input_type -> telepresence.manager.SessionInfo
-	42, // 57: telepresence.manager.Manager.WatchLogLevel:input_type -> google.protobuf.Empty
-	26, // 58: telepresence.manager.Manager.Tunnel:input_type -> telepresence.manager.TunnelMessage
-	7,  // 59: telepresence.manager.Manager.WatchDial:input_type -> telepresence.manager.SessionInfo
-	21, // 60: telepresence.manager.Manager.Version:output_type -> telepresence.manager.VersionInfo2
-	22, // 61: telepresence.manager.Manager.GetLicense:output_type -> telepresence.manager.License
-	24, // 62: telepresence.manager.Manager.CanConnectAmbassadorCloud:output_type -> telepresence.manager.AmbassadorCloudConnection
-	23, // 63: telepresence.manager.Manager.GetCloudConfig:output_type -> telepresence.manager.AmbassadorCloudConfig
-	20, // 64: telepresence.manager.Manager.GetTelepresenceAPI:output_type -> telepresence.manager.TelepresenceAPIInfo
-	7,  // 65: telepresence.manager.Manager.ArriveAsClient:output_type -> telepresence.manager.SessionInfo
-	7,  // 66: telepresence.manager.Manager.ArriveAsAgent:output_type -> telepresence.manager.SessionInfo
-	42, // 67: telepresence.manager.Manager.Remain:output_type -> google.protobuf.Empty
-	42, // 68: telepresence.manager.Manager.Depart:output_type -> google.protobuf.Empty
-	42, // 69: telepresence.manager.Manager.SetLogLevel:output_type -> google.protobuf.Empty
-	19, // 70: telepresence.manager.Manager.GetLogs:output_type -> telepresence.manager.LogsResponse
-	9,  // 71: telepresence.manager.Manager.WatchAgents:output_type -> telepresence.manager.AgentInfoSnapshot
-	9,  // 72: telepresence.manager.Manager.WatchAgentsNS:output_type -> telepresence.manager.AgentInfoSnapshot
-	10, // 73: telepresence.manager.Manager.WatchIntercepts:output_type -> telepresence.manager.InterceptInfoSnapshot
-	32, // 74: telepresence.manager.Manager.WatchClusterInfo:output_type -> telepresence.manager.ClusterInfo
-	6,  // 75: telepresence.manager.Manager.CreateIntercept:output_type -> telepresence.manager.InterceptInfo
-	42, // 76: telepresence.manager.Manager.RemoveIntercept:output_type -> google.protobuf.Empty
-	6,  // 77: telepresence.manager.Manager.UpdateIntercept:output_type -> telepresence.manager.InterceptInfo
-	6,  // 78: telepresence.manager.Manager.GetIntercept:output_type -> telepresence.manager.InterceptInfo
-	42, // 79: telepresence.manager.Manager.ReviewIntercept:output_type -> google.protobuf.Empty
-	25, // 80: telepresence.manager.Manager.ClientTunnel:output_type -> telepresence.manager.ConnMessage
-	25, // 81: telepresence.manager.Manager.AgentTunnel:output_type -> telepresence.manager.ConnMessage
-	29, // 82: telepresence.manager.Manager.LookupHost:output_type -> telepresence.manager.LookupHostResponse
-	42, // 83: telepresence.manager.Manager.AgentLookupHostResponse:output_type -> google.protobuf.Empty
-	28, // 84: telepresence.manager.Manager.WatchLookupHost:output_type -> telepresence.manager.LookupHostRequest
-	17, // 85: telepresence.manager.Manager.WatchLogLevel:output_type -> telepresence.manager.LogLevelRequest
-	26, // 86: telepresence.manager.Manager.Tunnel:output_type -> telepresence.manager.TunnelMessage
-	27, // 87: telepresence.manager.Manager.WatchDial:output_type -> telepresence.manager.DialRequest
-	60, // [60:88] is the sub-list for method output_type
-	32, // [32:60] is the sub-list for method input_type
-	32, // [32:32] is the sub-list for extension type_name
-	32, // [32:32] is the sub-list for extension extendee
-	0,  // [0:32] is the sub-list for field type_name
+	35, // 3: telepresence.manager.PreviewSpec.add_request_headers:type_name -> telepresence.manager.PreviewSpec.AddRequestHeadersEntry
+	3,  // 4: telepresence.manager.InterceptInfo.spec:type_name -> telepresence.manager.InterceptSpec
+	7,  // 5: telepresence.manager.InterceptInfo.client_session:type_name -> telepresence.manager.SessionInfo
+	5,  // 6: telepresence.manager.InterceptInfo.preview_spec:type_name -> telepresence.manager.PreviewSpec
+	0,  // 7: telepresence.manager.InterceptInfo.disposition:type_name -> telepresence.manager.InterceptDispositionType
+	36, // 8: telepresence.manager.InterceptInfo.headers:type_name -> telepresence.manager.InterceptInfo.HeadersEntry
+	37, // 9: telepresence.manager.InterceptInfo.metadata:type_name -> telepresence.manager.InterceptInfo.MetadataEntry
+	7,  // 10: telepresence.manager.AgentsRequest.session:type_name -> telepresence.manager.SessionInfo
+	2,  // 11: telepresence.manager.AgentInfoSnapshot.agents:type_name -> telepresence.manager.AgentInfo
+	6,  // 12: telepresence.manager.InterceptInfoSnapshot.intercepts:type_name -> telepresence.manager.InterceptInfo
+	7,  // 13: telepresence.manager.CreateInterceptRequest.session:type_name -> telepresence.manager.SessionInfo
+	3,  // 14: telepresence.manager.CreateInterceptRequest.intercept_spec:type_name -> telepresence.manager.InterceptSpec
+	7,  // 15: telepresence.manager.UpdateInterceptRequest.session:type_name -> telepresence.manager.SessionInfo
+	5,  // 16: telepresence.manager.UpdateInterceptRequest.add_preview_domain:type_name -> telepresence.manager.PreviewSpec
+	7,  // 17: telepresence.manager.RemoveInterceptRequest2.session:type_name -> telepresence.manager.SessionInfo
+	7,  // 18: telepresence.manager.GetInterceptRequest.session:type_name -> telepresence.manager.SessionInfo
+	7,  // 19: telepresence.manager.ReviewInterceptRequest.session:type_name -> telepresence.manager.SessionInfo
+	0,  // 20: telepresence.manager.ReviewInterceptRequest.disposition:type_name -> telepresence.manager.InterceptDispositionType
+	38, // 21: telepresence.manager.ReviewInterceptRequest.headers:type_name -> telepresence.manager.ReviewInterceptRequest.HeadersEntry
+	39, // 22: telepresence.manager.ReviewInterceptRequest.metadata:type_name -> telepresence.manager.ReviewInterceptRequest.MetadataEntry
+	7,  // 23: telepresence.manager.RemainRequest.session:type_name -> telepresence.manager.SessionInfo
+	42, // 24: telepresence.manager.LogLevelRequest.duration:type_name -> google.protobuf.Duration
+	40, // 25: telepresence.manager.LogsResponse.pod_logs:type_name -> telepresence.manager.LogsResponse.PodLogsEntry
+	41, // 26: telepresence.manager.LogsResponse.pod_yaml:type_name -> telepresence.manager.LogsResponse.PodYamlEntry
+	7,  // 27: telepresence.manager.LookupHostRequest.session:type_name -> telepresence.manager.SessionInfo
+	7,  // 28: telepresence.manager.LookupHostAgentResponse.session:type_name -> telepresence.manager.SessionInfo
+	28, // 29: telepresence.manager.LookupHostAgentResponse.request:type_name -> telepresence.manager.LookupHostRequest
+	29, // 30: telepresence.manager.LookupHostAgentResponse.response:type_name -> telepresence.manager.LookupHostResponse
+	31, // 31: telepresence.manager.ClusterInfo.service_subnet:type_name -> telepresence.manager.IPNet
+	31, // 32: telepresence.manager.ClusterInfo.pod_subnets:type_name -> telepresence.manager.IPNet
+	43, // 33: telepresence.manager.Manager.Version:input_type -> google.protobuf.Empty
+	43, // 34: telepresence.manager.Manager.GetLicense:input_type -> google.protobuf.Empty
+	43, // 35: telepresence.manager.Manager.CanConnectAmbassadorCloud:input_type -> google.protobuf.Empty
+	43, // 36: telepresence.manager.Manager.GetCloudConfig:input_type -> google.protobuf.Empty
+	43, // 37: telepresence.manager.Manager.GetTelepresenceAPI:input_type -> google.protobuf.Empty
+	1,  // 38: telepresence.manager.Manager.ArriveAsClient:input_type -> telepresence.manager.ClientInfo
+	2,  // 39: telepresence.manager.Manager.ArriveAsAgent:input_type -> telepresence.manager.AgentInfo
+	16, // 40: telepresence.manager.Manager.Remain:input_type -> telepresence.manager.RemainRequest
+	7,  // 41: telepresence.manager.Manager.Depart:input_type -> telepresence.manager.SessionInfo
+	17, // 42: telepresence.manager.Manager.SetLogLevel:input_type -> telepresence.manager.LogLevelRequest
+	18, // 43: telepresence.manager.Manager.GetLogs:input_type -> telepresence.manager.GetLogsRequest
+	7,  // 44: telepresence.manager.Manager.WatchAgents:input_type -> telepresence.manager.SessionInfo
+	8,  // 45: telepresence.manager.Manager.WatchAgentsNS:input_type -> telepresence.manager.AgentsRequest
+	7,  // 46: telepresence.manager.Manager.WatchIntercepts:input_type -> telepresence.manager.SessionInfo
+	7,  // 47: telepresence.manager.Manager.WatchClusterInfo:input_type -> telepresence.manager.SessionInfo
+	11, // 48: telepresence.manager.Manager.CreateIntercept:input_type -> telepresence.manager.CreateInterceptRequest
+	13, // 49: telepresence.manager.Manager.RemoveIntercept:input_type -> telepresence.manager.RemoveInterceptRequest2
+	12, // 50: telepresence.manager.Manager.UpdateIntercept:input_type -> telepresence.manager.UpdateInterceptRequest
+	14, // 51: telepresence.manager.Manager.GetIntercept:input_type -> telepresence.manager.GetInterceptRequest
+	15, // 52: telepresence.manager.Manager.ReviewIntercept:input_type -> telepresence.manager.ReviewInterceptRequest
+	25, // 53: telepresence.manager.Manager.ClientTunnel:input_type -> telepresence.manager.ConnMessage
+	25, // 54: telepresence.manager.Manager.AgentTunnel:input_type -> telepresence.manager.ConnMessage
+	28, // 55: telepresence.manager.Manager.LookupHost:input_type -> telepresence.manager.LookupHostRequest
+	30, // 56: telepresence.manager.Manager.AgentLookupHostResponse:input_type -> telepresence.manager.LookupHostAgentResponse
+	7,  // 57: telepresence.manager.Manager.WatchLookupHost:input_type -> telepresence.manager.SessionInfo
+	43, // 58: telepresence.manager.Manager.WatchLogLevel:input_type -> google.protobuf.Empty
+	26, // 59: telepresence.manager.Manager.Tunnel:input_type -> telepresence.manager.TunnelMessage
+	7,  // 60: telepresence.manager.Manager.WatchDial:input_type -> telepresence.manager.SessionInfo
+	21, // 61: telepresence.manager.Manager.Version:output_type -> telepresence.manager.VersionInfo2
+	22, // 62: telepresence.manager.Manager.GetLicense:output_type -> telepresence.manager.License
+	24, // 63: telepresence.manager.Manager.CanConnectAmbassadorCloud:output_type -> telepresence.manager.AmbassadorCloudConnection
+	23, // 64: telepresence.manager.Manager.GetCloudConfig:output_type -> telepresence.manager.AmbassadorCloudConfig
+	20, // 65: telepresence.manager.Manager.GetTelepresenceAPI:output_type -> telepresence.manager.TelepresenceAPIInfo
+	7,  // 66: telepresence.manager.Manager.ArriveAsClient:output_type -> telepresence.manager.SessionInfo
+	7,  // 67: telepresence.manager.Manager.ArriveAsAgent:output_type -> telepresence.manager.SessionInfo
+	43, // 68: telepresence.manager.Manager.Remain:output_type -> google.protobuf.Empty
+	43, // 69: telepresence.manager.Manager.Depart:output_type -> google.protobuf.Empty
+	43, // 70: telepresence.manager.Manager.SetLogLevel:output_type -> google.protobuf.Empty
+	19, // 71: telepresence.manager.Manager.GetLogs:output_type -> telepresence.manager.LogsResponse
+	9,  // 72: telepresence.manager.Manager.WatchAgents:output_type -> telepresence.manager.AgentInfoSnapshot
+	9,  // 73: telepresence.manager.Manager.WatchAgentsNS:output_type -> telepresence.manager.AgentInfoSnapshot
+	10, // 74: telepresence.manager.Manager.WatchIntercepts:output_type -> telepresence.manager.InterceptInfoSnapshot
+	32, // 75: telepresence.manager.Manager.WatchClusterInfo:output_type -> telepresence.manager.ClusterInfo
+	6,  // 76: telepresence.manager.Manager.CreateIntercept:output_type -> telepresence.manager.InterceptInfo
+	43, // 77: telepresence.manager.Manager.RemoveIntercept:output_type -> google.protobuf.Empty
+	6,  // 78: telepresence.manager.Manager.UpdateIntercept:output_type -> telepresence.manager.InterceptInfo
+	6,  // 79: telepresence.manager.Manager.GetIntercept:output_type -> telepresence.manager.InterceptInfo
+	43, // 80: telepresence.manager.Manager.ReviewIntercept:output_type -> google.protobuf.Empty
+	25, // 81: telepresence.manager.Manager.ClientTunnel:output_type -> telepresence.manager.ConnMessage
+	25, // 82: telepresence.manager.Manager.AgentTunnel:output_type -> telepresence.manager.ConnMessage
+	29, // 83: telepresence.manager.Manager.LookupHost:output_type -> telepresence.manager.LookupHostResponse
+	43, // 84: telepresence.manager.Manager.AgentLookupHostResponse:output_type -> google.protobuf.Empty
+	28, // 85: telepresence.manager.Manager.WatchLookupHost:output_type -> telepresence.manager.LookupHostRequest
+	17, // 86: telepresence.manager.Manager.WatchLogLevel:output_type -> telepresence.manager.LogLevelRequest
+	26, // 87: telepresence.manager.Manager.Tunnel:output_type -> telepresence.manager.TunnelMessage
+	27, // 88: telepresence.manager.Manager.WatchDial:output_type -> telepresence.manager.DialRequest
+	61, // [61:89] is the sub-list for method output_type
+	33, // [33:61] is the sub-list for method input_type
+	33, // [33:33] is the sub-list for extension type_name
+	33, // [33:33] is the sub-list for extension extendee
+	0,  // [0:33] is the sub-list for field type_name
 }
 
 func init() { file_rpc_manager_manager_proto_init() }
@@ -3549,7 +3570,7 @@ func file_rpc_manager_manager_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_rpc_manager_manager_proto_rawDesc,
 			NumEnums:      1,
-			NumMessages:   40,
+			NumMessages:   41,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
