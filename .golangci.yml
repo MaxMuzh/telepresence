@@ -80,7 +80,7 @@ linters:
     - errcheck
     - exportloopref
     - forbidigo
-    - gci
+    #- gci
     - gocognit
     - gocritic
     - gocyclo

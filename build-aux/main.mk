@@ -106,6 +106,7 @@ endif
 .PHONY: build-version build
 build-version: pkg/install/helm/telepresence-chart.tgz ## (Build) Generate a telepresence-chart.tgz and build all the source code
 	mkdir -p $(BINDIR)
+	rm -f $@ # sometimes Go 1.18.0 spits out an invalid binary if I don't do this
 	CGO_ENABLED=$(CGO_ENABLED) $(sdkroot) go build -trimpath -ldflags=-X=$(PKG_VERSION).Version=$(TELEPRESENCE_VERSION) -o $(BINDIR) ./cmd/telepresence || \
 		(git restore pkg/install/helm/telepresence-chart.tgz; exit 1) # in case the build fails
 
