@@ -623,8 +623,17 @@ func (s *Service) ValidArgsForCommand(ctx context.Context, req *rpc.ValidArgsFor
 	}
 	var (
 		name = req.GetCmdName()
-		cmd  = commands.GetCommandByName(ctx, name)
+		cmd  *cobra.Command
 	)
+
+	groups := s.getCommands(ctx)
+	for _, group := range groups {
+		for _, c := range group {
+			if c.Name() == name {
+				cmd = c
+			}
+		}
+	}
 
 	if cmd == nil {
 		return &resp, fmt.Errorf("command %s not found", name)
@@ -665,7 +674,7 @@ func (s *Service) ValidArgsForCommand(ctx context.Context, req *rpc.ValidArgsFor
 	}
 
 	// user wants autocompletion on argument
-	vaf := commands.GetValidArgsFunctionFor(ctx, cmd)
+	vaf := s.getValidArgsFunctionFor(ctx, cmd)
 	if vaf == nil {
 		return &resp, nil
 	}
@@ -704,7 +713,7 @@ func (s *Service) ValidArgsForCommand(ctx context.Context, req *rpc.ValidArgsFor
 }
 
 func (s *Service) autocompleteFlag(ctx context.Context, cmd *cobra.Command, args []string, flagName, toComplete string) ([]string, cobra.ShellCompDirective) {
-	faf := commands.GetFlagAutocompletionFuncFor(ctx, cmd, flagName)
+	faf := s.getFlagAutocompletionFuncFor(ctx, cmd, flagName)
 	if faf == nil {
 		// theres no autocompletion for this flag
 		return []string{}, 0

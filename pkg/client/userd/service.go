@@ -26,6 +26,7 @@ import (
 	"github.com/telepresenceio/telepresence/v2/pkg/client/logging"
 	"github.com/telepresenceio/telepresence/v2/pkg/client/scout"
 	"github.com/telepresenceio/telepresence/v2/pkg/client/userd/auth"
+	"github.com/telepresenceio/telepresence/v2/pkg/client/userd/commands"
 	"github.com/telepresenceio/telepresence/v2/pkg/client/userd/internal/broadcastqueue"
 	"github.com/telepresenceio/telepresence/v2/pkg/client/userd/trafficmgr"
 	"github.com/telepresenceio/telepresence/v2/pkg/filelocation"
@@ -87,7 +88,15 @@ type Service struct {
 	connectResponse chan *rpc.ConnectInfo    // connectWorker -> server-grpc.connect()
 
 	// This is used for the service to know which CLI commands it supports
-	getCommands CommandFactory
+	getCommands                  CommandFactory
+	getValidArgsFunctionFor      func(context.Context, *cobra.Command) commands.AutocompletionFunc
+	getFlagAutocompletionFuncFor func(context.Context, *cobra.Command, string) commands.AutocompletionFunc
+}
+
+type CommandFuncs struct {
+	GetCommands               CommandFactory
+	ValidArgsFuntionFor       func(context.Context, *cobra.Command) commands.AutocompletionFunc
+	FlagAutocompletionFuncFor func(context.Context, *cobra.Command, string) commands.AutocompletionFunc
 }
 
 func (s *Service) SetManagerClient(managerClient manager.ManagerClient, callOptions ...grpc.CallOption) {
@@ -117,7 +126,7 @@ func (s *Service) LoginExecutor() auth.LoginExecutor {
 }
 
 // Command returns the CLI sub-command for "connector-foreground"
-func Command(getCommands CommandFactory, daemonServices []DaemonService, sessionServices []trafficmgr.SessionService) *cobra.Command {
+func Command(cf CommandFuncs, daemonServices []DaemonService, sessionServices []trafficmgr.SessionService) *cobra.Command {
 	c := &cobra.Command{
 		Use:    ProcessName + "-foreground",
 		Short:  "Launch Telepresence " + titleName + " in the foreground (debug)",
@@ -125,7 +134,7 @@ func Command(getCommands CommandFactory, daemonServices []DaemonService, session
 		Hidden: true,
 		Long:   help,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return run(cmd.Context(), getCommands, daemonServices, sessionServices)
+			return run(cmd.Context(), cf, daemonServices, sessionServices)
 		},
 	}
 	return c
@@ -251,7 +260,7 @@ func GetPoddService(sc *scout.Reporter, cfg client.Config, login auth.LoginExecu
 }
 
 // run is the main function when executing as the connector
-func run(c context.Context, getCommands CommandFactory, daemonServices []DaemonService, sessionServices []trafficmgr.SessionService) error {
+func run(c context.Context, cf CommandFuncs, daemonServices []DaemonService, sessionServices []trafficmgr.SessionService) error {
 	cfg, err := client.LoadConfig(c)
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
@@ -292,14 +301,16 @@ func run(c context.Context, getCommands CommandFactory, daemonServices []DaemonS
 	}
 
 	s := &Service{
-		scout:             sr,
-		connectRequest:    make(chan *rpc.ConnectRequest),
-		connectResponse:   make(chan *rpc.ConnectInfo),
-		ManagerProxy:      trafficmgr.NewManagerProxy(),
-		loginExecutor:     auth.NewStandardLoginExecutor(cliio, sr),
-		userNotifications: cliio.Subscribe,
-		timedLogLevel:     log.NewTimedLevel(cfg.LogLevels.UserDaemon.String(), log.SetLevel),
-		getCommands:       getCommands,
+		scout:                        sr,
+		connectRequest:               make(chan *rpc.ConnectRequest),
+		connectResponse:              make(chan *rpc.ConnectInfo),
+		ManagerProxy:                 trafficmgr.NewManagerProxy(),
+		loginExecutor:                auth.NewStandardLoginExecutor(cliio, sr),
+		userNotifications:            cliio.Subscribe,
+		timedLogLevel:                log.NewTimedLevel(cfg.LogLevels.UserDaemon.String(), log.SetLevel),
+		getCommands:                  cf.GetCommands,
+		getValidArgsFunctionFor:      cf.ValidArgsFuntionFor,
+		getFlagAutocompletionFuncFor: cf.FlagAutocompletionFuncFor,
 	}
 	if err := logging.LoadTimedLevelFromCache(c, s.timedLogLevel, s.procName); err != nil {
 		return err

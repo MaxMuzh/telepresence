@@ -50,7 +50,12 @@ func main() {
 			SilenceErrors: true, // main() will handle it after .ExecuteContext() returns
 			SilenceUsage:  true, // our FlagErrorFunc will handle it
 		}
-		cmd.AddCommand(userd.Command(commands.GetCommands, []userd.DaemonService{}, []trafficmgr.SessionService{}))
+		cf := userd.CommandFuncs{
+			GetCommands:               commands.GetCommands,
+			ValidArgsFuntionFor:       commands.GetValidArgsFunctionFor,
+			FlagAutocompletionFuncFor: commands.GetFlagAutocompletionFuncFor,
+		}
+		cmd.AddCommand(userd.Command(cf, []userd.DaemonService{}, []trafficmgr.SessionService{}))
 		cmd.AddCommand(rootd.Command())
 		if err := cmd.ExecuteContext(ctx); err != nil {
 			fmt.Fprintf(cmd.ErrOrStderr(), "%s: error: %v\n", cmd.CommandPath(), err)
