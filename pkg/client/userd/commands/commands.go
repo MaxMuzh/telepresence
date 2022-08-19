@@ -25,12 +25,12 @@ type command interface {
 	group() string
 }
 
-type argAutocompleter interface {
-	validArgsFunc() AutocompletionFunc
+type ArgAutocompleter interface {
+	ValidArgsFunc() AutocompletionFunc
 }
 
-type flagAutocompleter interface {
-	flagAutocompletionFunc(flagName string) AutocompletionFunc
+type FlagAutocompleter interface {
+	FlagAutocompletionFunc(flagName string) AutocompletionFunc
 }
 
 type AutocompletionFunc func(ctx context.Context, cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective)
@@ -93,8 +93,8 @@ func GetValidArgsFunctionFor(ctx context.Context, cmd *cobra.Command) Autocomple
 		if cmd.cobraCommand(ctx).Name() != name {
 			continue
 		}
-		if ac, ok := cmd.(argAutocompleter); ok {
-			return ac.validArgsFunc()
+		if ac, ok := cmd.(ArgAutocompleter); ok {
+			return ac.ValidArgsFunc()
 		} else {
 			return nil
 		}
@@ -108,8 +108,8 @@ func GetFlagAutocompletionFuncFor(ctx context.Context, cmd *cobra.Command, flagN
 		if cmd.cobraCommand(ctx).Name() != name {
 			continue
 		}
-		if ac, ok := cmd.(flagAutocompleter); ok {
-			return ac.flagAutocompletionFunc(flagName)
+		if ac, ok := cmd.(FlagAutocompleter); ok {
+			return ac.FlagAutocompletionFunc(flagName)
 		} else {
 			return nil
 		}
