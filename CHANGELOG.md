@@ -1,5 +1,13 @@
 # Changelog
 
+### 2.7.4 (TBD)
+
+- Feature: Telepresence can now use an embedded FTP client and load an existing FUSE library
+  instead of running an external `sshfs` or `sshfs-win` binary. This feature is experimental
+  in 2.7.x and enabled by setting `intercept.useFtp` to `true` in the `config.yml`.
+
+- Change: Telepresence on Windows upgraded winfsp from version 1.10 to 1.11
+
 ### 2.7.3 (September 7, 2022)
 
 - Bugfix: CLI commands that are executed by the user daemon now use a pseudo TTY. This enables
