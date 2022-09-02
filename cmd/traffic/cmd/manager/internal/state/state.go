@@ -3,11 +3,13 @@ package state
 import (
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/miekg/dns"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/propagation"
@@ -20,6 +22,7 @@ import (
 	rpc "github.com/telepresenceio/telepresence/rpc/v2/manager"
 	"github.com/telepresenceio/telepresence/v2/cmd/traffic/cmd/manager/internal/watchable"
 	"github.com/telepresenceio/telepresence/v2/cmd/traffic/cmd/manager/managerutil"
+	"github.com/telepresenceio/telepresence/v2/pkg/dnsproxy"
 	"github.com/telepresenceio/telepresence/v2/pkg/iputil"
 	"github.com/telepresenceio/telepresence/v2/pkg/log"
 	"github.com/telepresenceio/telepresence/v2/pkg/tunnel"
@@ -161,17 +164,26 @@ type clientSessionState struct {
 
 type agentSessionState struct {
 	sessionState
-	agent           *rpc.AgentInfo
-	lookups         chan *rpc.LookupHostRequest
-	lookupResponses map[string]chan *rpc.LookupHostResponse
+	agent              *rpc.AgentInfo
+	lookupHostRequests chan DNSRequest
+	lookupDNSRequests  chan DNSRequest
+	lookupResponses    map[string]chan fmt.Stringer
 }
 
 func (ss *agentSessionState) Cancel() {
-	close(ss.lookups)
+	close(ss.lookupHostRequests)
 	for _, lr := range ss.lookupResponses {
 		close(lr)
 	}
 	ss.sessionState.Cancel()
+}
+
+func (ss *agentSessionState) hostRequests() chan DNSRequest {
+	return ss.lookupHostRequests
+}
+
+func (ss *agentSessionState) dnsRequests() chan DNSRequest {
+	return ss.lookupDNSRequests
 }
 
 // State is the total state of the Traffic Manager.  A zero State is invalid; you must call
@@ -472,10 +484,11 @@ func (s *State) AddAgent(agent *rpc.AgentInfo, now time.Time) string {
 	s.agentsByName[agent.Name][sessionID] = agent
 
 	s.sessions[sessionID] = &agentSessionState{
-		sessionState:    s.newSessionState(now),
-		lookups:         make(chan *rpc.LookupHostRequest),
-		lookupResponses: make(map[string]chan *rpc.LookupHostResponse),
-		agent:           agent,
+		sessionState:       s.newSessionState(now),
+		lookupHostRequests: make(chan DNSRequest),
+		lookupDNSRequests:  make(chan DNSRequest),
+		lookupResponses:    make(map[string]chan fmt.Stringer),
+		agent:              agent,
 	}
 
 	for interceptID, intercept := range s.intercepts.LoadAll() {
@@ -761,120 +774,77 @@ func (s *State) WatchDial(sessionID string) <-chan *rpc.DialRequest {
 	return ss.Dials()
 }
 
-// AgentsLookup will send the given request to all agents currently intercepted by the client identified with
+// AgentsLookupHost will send the given request to all agents currently intercepted by the client identified with
 // the clientSessionID, it will then wait for results to arrive, collect those results, and return them as a
 // unique and sorted slice together with a count of how many agents that replied.
-func (s *State) AgentsLookup(ctx context.Context, clientSessionID string, request *rpc.LookupHostRequest) (iputil.IPs, int, error) {
-	iceptAgentIDs := s.getAgentsInterceptedByClient(clientSessionID)
-	ips := iputil.IPs{}
-	iceptCount := len(iceptAgentIDs)
-	if iceptCount == 0 {
-		return ips, 0, nil
+func (s *State) AgentsLookupHost(ctx context.Context, clientSessionID string, request *rpc.LookupHostRequest) (iputil.IPs, int, error) {
+	rs, err := s.agentsLookup(ctx, clientSessionID, request, (*agentSessionState).hostRequests)
+	if err != nil {
+		return nil, 0, err
 	}
-
-	rsMu := sync.Mutex{} // prevent concurrent updates of the ips slice
-	agentTimeout, cancel := context.WithTimeout(ctx, time.Second)
-	defer cancel()
-
-	count := 0
-	wg := sync.WaitGroup{}
-	wg.Add(iceptCount)
-	for _, agentSessionID := range iceptAgentIDs {
-		go func(agentSessionID string) {
-			defer func() {
-				s.endHostLookup(agentSessionID, request)
-				wg.Done()
-			}()
-
-			rsCh := s.startHostLookup(agentSessionID, request)
-			if rsCh == nil {
-				return
-			}
-			select {
-			case <-agentTimeout.Done():
-				return
-			case rs := <-rsCh:
-				if rs == nil {
-					// Channel closed
-					return
-				}
-				rsMu.Lock()
-				count++
-				for _, ip := range rs.Ips {
-					ips = append(ips, ip)
-				}
-				rsMu.Unlock()
-			}
-		}(agentSessionID)
+	count := len(rs)
+	if count == 0 {
+		return nil, 0, nil
 	}
-	wg.Wait() // wait for timeout or that all agents have responded
+	ips := make(iputil.IPs, 0, count)
+	for _, r := range rs {
+		for _, ip := range r.(*rpc.LookupHostResponse).Ips {
+			ips = append(ips, ip)
+		}
+	}
 	return ips.UniqueSorted(), count, nil
 }
 
-// PostLookupResponse receives lookup responses from an agent and places them in the channel
+// PostLookupHostResponse receives lookup responses from an agent and places them in the channel
 // that corresponds to the lookup request
-func (s *State) PostLookupResponse(response *rpc.LookupHostAgentResponse) {
-	responseID := response.Request.Session.SessionId + ":" + response.Request.Host
-	var rch chan<- *rpc.LookupHostResponse
-	s.mu.RLock()
-	if as, ok := s.sessions[response.Session.SessionId].(*agentSessionState); ok {
-		rch = as.lookupResponses[responseID]
-	}
-	s.mu.RUnlock()
-	if rch != nil {
-		rch <- response.Response
-	}
+func (s *State) PostLookupHostResponse(response *rpc.LookupHostAgentResponse) {
+	postLookupResponse[*rpc.LookupHostRequest, *rpc.LookupHostResponse](s.ctx, s, response)
 }
 
-func (s *State) startHostLookup(agentSessionID string, request *rpc.LookupHostRequest) <-chan *rpc.LookupHostResponse {
-	responseID := request.Session.SessionId + ":" + request.Host
-	var (
-		rch chan *rpc.LookupHostResponse
-		as  *agentSessionState
-		ok  bool
-	)
-	s.mu.Lock()
-	if as, ok = s.sessions[agentSessionID].(*agentSessionState); ok {
-		if rch, ok = as.lookupResponses[responseID]; !ok {
-			rch = make(chan *rpc.LookupHostResponse)
-			as.lookupResponses[responseID] = rch
+func (s *State) WatchLookupHost(agentSessionID string) <-chan DNSRequest {
+	return s.watchLookup(agentSessionID, (*agentSessionState).hostRequests)
+}
+
+// We can use our own Rcodes in the range that is reserved for private use
+
+// RcodeNoAgents means that no agents replied to the DNS request
+const RcodeNoAgents = 3841
+
+// AgentsLookupDNS will send the given request to all agents currently intercepted by the client identified with
+// the clientSessionID, it will then wait for results to arrive, collect those results, and return the result.
+func (s *State) AgentsLookupDNS(ctx context.Context, clientSessionID string, request *rpc.DNSRequest) ([]dns.RR, int, error) {
+	rs, err := s.agentsLookup(ctx, clientSessionID, request, (*agentSessionState).dnsRequests)
+	if err != nil {
+		return nil, 0, err
+	}
+	if len(rs) == 0 {
+		return nil, RcodeNoAgents, nil
+	}
+	var bestRRs []dns.RR
+	bestRcode := math.MaxInt
+	for _, r := range rs {
+		rrs, rCode, err := dnsproxy.FromRPC(r.(*rpc.DNSResponse))
+		if err != nil {
+			return nil, rCode, err
+		}
+		if rCode < bestRcode {
+			bestRcode = rCode
+			if len(rrs) > len(bestRRs) {
+				bestRRs = rrs
+			}
 		}
 	}
-	s.mu.Unlock()
-	if as != nil {
-		// the as.lookups channel may be closed at this point, so guard for panic
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					close(rch)
-				}
-			}()
-			as.lookups <- request
-		}()
-	}
-	return rch
+	return bestRRs, bestRcode, nil
 }
 
-func (s *State) endHostLookup(agentSessionID string, request *rpc.LookupHostRequest) {
-	responseID := request.Session.SessionId + ":" + request.Host
-	s.mu.Lock()
-	if as, ok := s.sessions[agentSessionID].(*agentSessionState); ok {
-		if rch, ok := as.lookupResponses[responseID]; ok {
-			delete(as.lookupResponses, responseID)
-			close(rch)
-		}
-	}
-	s.mu.Unlock()
+// PostLookupDNSResponse receives lookup responses from an agent and places them in the channel
+// that corresponds to the lookup request
+func (s *State) PostLookupDNSResponse(response *rpc.DNSAgentResponse) {
+	postLookupResponse[*rpc.DNSRequest, *rpc.DNSResponse](s.ctx, s, response)
 }
 
-func (s *State) WatchLookupHost(agentSessionID string) <-chan *rpc.LookupHostRequest {
-	s.mu.RLock()
-	ss, ok := s.sessions[agentSessionID]
-	s.mu.RUnlock()
-	if !ok {
-		return nil
-	}
-	return ss.(*agentSessionState).lookups
+func (s *State) WatchLookupDNS(agentSessionID string) <-chan DNSRequest {
+	return s.watchLookup(agentSessionID, (*agentSessionState).dnsRequests)
 }
 
 // SetTempLogLevel sets the temporary log-level for the traffic-manager and all agents and,

@@ -322,6 +322,8 @@ func (p *mgrProxy) WatchDial(arg *managerrpc.SessionInfo, srv managerrpc.Manager
 	}
 }
 
+// LookupHost
+// Deprecated: use LookupDNS
 func (p *mgrProxy) LookupHost(ctx context.Context, arg *managerrpc.LookupHostRequest) (*managerrpc.LookupHostResponse, error) {
 	client, callOptions, err := p.get()
 	if err != nil {
@@ -330,16 +332,28 @@ func (p *mgrProxy) LookupHost(ctx context.Context, arg *managerrpc.LookupHostReq
 	return client.LookupHost(ctx, arg, callOptions...)
 }
 
-func (p *mgrProxy) AgentLookupHostResponse(ctx context.Context, arg *managerrpc.LookupHostAgentResponse) (*empty.Empty, error) {
-	client, callOptions, err := p.get()
-	if err != nil {
-		return nil, err
-	}
-	return client.AgentLookupHostResponse(ctx, arg, callOptions...)
+func (p *mgrProxy) AgentLookupHostResponse(context.Context, *managerrpc.LookupHostAgentResponse) (*empty.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "must call manager.AgentLookupHostResponse from an agent (intercepted Pod), not from a client (workstation)")
 }
 
 func (p *mgrProxy) WatchLookupHost(*managerrpc.SessionInfo, managerrpc.Manager_WatchLookupHostServer) error {
 	return status.Error(codes.Unimplemented, "must call manager.WatchLookupHost from an agent (intercepted Pod), not from a client (workstation)")
+}
+
+func (p *mgrProxy) LookupDNS(ctx context.Context, arg *managerrpc.DNSRequest) (*managerrpc.DNSResponse, error) {
+	client, callOptions, err := p.get()
+	if err != nil {
+		return nil, err
+	}
+	return client.LookupDNS(ctx, arg, callOptions...)
+}
+
+func (p *mgrProxy) AgentLookupDNSResponse(context.Context, *managerrpc.DNSAgentResponse) (*empty.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "must call manager.AgentLookupDNSResponse from an agent (intercepted Pod), not from a client (workstation)")
+}
+
+func (p *mgrProxy) WatchLookupDNS(*managerrpc.SessionInfo, managerrpc.Manager_WatchLookupDNSServer) error {
+	return status.Error(codes.Unimplemented, "must call manager.WatchLookupDNS from an agent (intercepted Pod), not from a client (workstation)")
 }
 
 func (p *mgrProxy) WatchClusterInfo(arg *managerrpc.SessionInfo, srv managerrpc.Manager_WatchClusterInfoServer) error {

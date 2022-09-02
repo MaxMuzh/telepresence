@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	dns2 "github.com/miekg/dns"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/codes"
@@ -26,6 +27,7 @@ import (
 	"github.com/telepresenceio/telepresence/v2/cmd/traffic/cmd/manager/license"
 	"github.com/telepresenceio/telepresence/v2/cmd/traffic/cmd/manager/managerutil"
 	"github.com/telepresenceio/telepresence/v2/pkg/a8rcloud"
+	"github.com/telepresenceio/telepresence/v2/pkg/dnsproxy"
 	"github.com/telepresenceio/telepresence/v2/pkg/iputil"
 	"github.com/telepresenceio/telepresence/v2/pkg/tracing"
 	"github.com/telepresenceio/telepresence/v2/pkg/tunnel"
@@ -783,24 +785,24 @@ func (m *Manager) WatchDial(session *rpc.SessionInfo, stream rpc.Manager_WatchDi
 
 func (m *Manager) LookupHost(ctx context.Context, request *rpc.LookupHostRequest) (*rpc.LookupHostResponse, error) {
 	ctx = managerutil.WithSessionInfo(ctx, request.GetSession())
-	dlog.Debugf(ctx, "LookupHost called %s", request.Host)
+	dlog.Debugf(ctx, "LookupHost called %s", request.Name)
 	sessionID := request.GetSession().GetSessionId()
 
-	ips, count, err := m.state.AgentsLookup(ctx, sessionID, request)
+	ips, count, err := m.state.AgentsLookupHost(ctx, sessionID, request)
 	if err != nil {
 		dlog.Errorf(ctx, "AgentLookup: %v", err)
 	} else if count > 0 {
 		if len(ips) == 0 {
-			dlog.Debugf(ctx, "LookupHost on agents: %s -> NOT FOUND", request.Host)
+			dlog.Debugf(ctx, "LookupHost on agents: %s -> NOT FOUND", request.Name)
 		} else {
-			dlog.Debugf(ctx, "LookupHost on agents: %s -> %s", request.Host, ips)
+			dlog.Debugf(ctx, "LookupHost on agents: %s -> %s", request.Name, ips)
 		}
 	}
 
 	if count == 0 {
-		if addrs, err := net.DefaultResolver.LookupHost(ctx, request.Host); err != nil {
+		if addrs, err := net.DefaultResolver.LookupHost(ctx, request.Name); err != nil {
 			if dnsErr, ok := err.(*net.DNSError); ok && dnsErr.IsNotFound {
-				dlog.Debugf(ctx, "LookupHost on traffic-manager: %s -> NOT FOUND", request.Host)
+				dlog.Debugf(ctx, "LookupHost on traffic-manager: %s -> NOT FOUND", request.Name)
 			} else {
 				dlog.Errorf(ctx, "LookupHost on traffic-manager LookupHost: %v", err)
 			}
@@ -809,7 +811,7 @@ func (m *Manager) LookupHost(ctx context.Context, request *rpc.LookupHostRequest
 			for i, addr := range addrs {
 				ips[i] = iputil.Parse(addr)
 			}
-			dlog.Debugf(ctx, "LookupHost on traffic-manager: %s -> %s", request.Host, ips)
+			dlog.Debugf(ctx, "LookupHost on traffic-manager: %s -> %s", request.Name, ips)
 		}
 	}
 	if ips == nil {
@@ -820,8 +822,8 @@ func (m *Manager) LookupHost(ctx context.Context, request *rpc.LookupHostRequest
 
 func (m *Manager) AgentLookupHostResponse(ctx context.Context, response *rpc.LookupHostAgentResponse) (*empty.Empty, error) {
 	ctx = managerutil.WithSessionInfo(ctx, response.GetSession())
-	dlog.Debugf(ctx, "AgentLookupHostResponse called %s -> %s", response.Request.Host, iputil.IPsFromBytesSlice(response.Response.Ips))
-	m.state.PostLookupResponse(response)
+	dlog.Debugf(ctx, "AgentLookupHostResponse called %s -> %s", response.Request.Name, iputil.IPsFromBytesSlice(response.Response.Ips))
+	m.state.PostLookupHostResponse(response)
 	return &empty.Empty{}, nil
 }
 
@@ -837,7 +839,7 @@ func (m *Manager) WatchLookupHost(session *rpc.SessionInfo, stream rpc.Manager_W
 			if lr == nil {
 				return nil
 			}
-			if err := stream.Send(lr); err != nil {
+			if err := stream.Send(lr.(*rpc.LookupHostRequest)); err != nil {
 				dlog.Errorf(ctx, "WatchLookupHost.Send() failed: %v", err)
 				return nil
 			}
@@ -879,4 +881,62 @@ const agentSessionTTL = 15 * time.Second
 func (m *Manager) expire(ctx context.Context) {
 	now := m.clock.Now()
 	m.state.ExpireSessions(ctx, now.Add(-clientSessionTTL), now.Add(-agentSessionTTL))
+}
+
+func (m *Manager) LookupDNS(ctx context.Context, request *rpc.DNSRequest) (*rpc.DNSResponse, error) {
+	ctx = managerutil.WithSessionInfo(ctx, request.GetSession())
+	qType := uint16(request.Type)
+	qtn := dns2.TypeToString[qType]
+	dlog.Debugf(ctx, "LookupDNS %s %s", request.Name, qtn)
+
+	rrs, rCode, err := m.state.AgentsLookupDNS(ctx, request.GetSession().GetSessionId(), request)
+	if err != nil {
+		dlog.Errorf(ctx, "AgentsLookupDNS %s %s: %v", request.Name, qtn, err)
+	} else if rCode != state.RcodeNoAgents {
+		if len(rrs) == 0 {
+			dlog.Debugf(ctx, "LookupDNS on agents: %s %s -> %s", request.Name, qtn, dns2.RcodeToString[rCode])
+		} else {
+			dlog.Debugf(ctx, "LookupDNS on agents: %s %s -> %v", request.Name, qtn, rrs)
+		}
+	}
+	if rCode == state.RcodeNoAgents {
+		rrs, rCode, err = dnsproxy.Lookup(ctx, qType, request.Name)
+		if err != nil {
+			dlog.Debugf(ctx, "LookupDNS on traffic-manager: %s %s -> %s %s", request.Name, qtn, dns2.RcodeToString[rCode], err)
+			return nil, err
+		}
+		if len(rrs) == 0 {
+			dlog.Debugf(ctx, "LookupDNS on traffic-manager: %s %s -> %s", request.Name, qtn, dns2.RcodeToString[rCode])
+		} else {
+			dlog.Debugf(ctx, "LookupDNS on traffic-manager: %s %s -> %v", request.Name, qtn, rrs)
+		}
+	}
+	return dnsproxy.ToRPC(rrs, rCode)
+}
+
+func (m *Manager) AgentLookupDNSResponse(ctx context.Context, response *rpc.DNSAgentResponse) (*empty.Empty, error) {
+	ctx = managerutil.WithSessionInfo(ctx, response.GetSession())
+	dlog.Debugf(ctx, "AgentLookupDNSResponse called %s", response.Request.Name)
+	m.state.PostLookupDNSResponse(response)
+	return &empty.Empty{}, nil
+}
+
+func (m *Manager) WatchLookupDNS(session *rpc.SessionInfo, stream rpc.Manager_WatchLookupDNSServer) error {
+	ctx := managerutil.WithSessionInfo(stream.Context(), session)
+	dlog.Debugf(ctx, "WatchLookupDNS called")
+	lrCh := m.state.WatchLookupDNS(session.SessionId)
+	for {
+		select {
+		case <-m.ctx.Done():
+			return nil
+		case lr := <-lrCh:
+			if lr == nil {
+				return nil
+			}
+			if err := stream.Send(lr.(*rpc.DNSRequest)); err != nil {
+				dlog.Errorf(ctx, "WatchLookupDNS.Send() failed: %v", err)
+				return nil
+			}
+		}
+	}
 }
