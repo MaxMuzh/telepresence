@@ -96,7 +96,10 @@ func Lookup(ctx context.Context, qType uint16, qName string) ([]dns.RR, int, err
 	}
 
 	var answer []dns.RR
-	r := net.DefaultResolver
+	r := &net.Resolver{
+		PreferGo:     true,
+		StrictErrors: true,
+	}
 	switch qType {
 	case dns.TypeA, dns.TypeAAAA:
 		var ips iputil.IPs
@@ -174,7 +177,22 @@ func Lookup(ctx context.Context, qType uint16, qName string) ([]dns.RR, int, err
 	case dns.TypeSRV:
 		var srvs []*net.SRV
 		if _, srvs, err = r.LookupSRV(ctx, "", "", qName); err != nil {
-			return makeError(err)
+			rrs, rCode, err := makeError(err)
+			if rCode != dns.RcodeNameError {
+				return rrs, rCode, err
+			}
+			// The LookupSRV doesn't use libc for the lookup even when told to do so, amd normal
+			// search-path expansion doesn't seem to apply. Let's see if the FQN is different, and
+			// if so, try that instead.
+			fqn := svcFQN(ctx, qName, r)
+			if fqn == "" || fqn == qName {
+				return rrs, rCode, err
+			}
+			var fqnErr error
+			if _, srvs, fqnErr = r.LookupSRV(ctx, "", "", fqn); fqnErr != nil {
+				// Return original error
+				return rrs, rCode, err
+			}
 		}
 		answer = make([]dns.RR, len(srvs))
 		for i, s := range srvs {
@@ -199,4 +217,27 @@ func Lookup(ctx context.Context, qType uint16, qName string) ([]dns.RR, int, err
 		return nil, dns.RcodeNotImplemented, status.Errorf(codes.Unimplemented, "unsupported DNS query type %s", dns.TypeToString[qType])
 	}
 	return answer, dns.RcodeSuccess, nil
+}
+
+func svcFQN(ctx context.Context, name string, r *net.Resolver) string {
+	parts := strings.Split(name, ".")
+	if !(len(parts) > 2 && strings.HasPrefix(parts[0], "_") && strings.HasPrefix(parts[1], "_")) {
+		return ""
+	}
+	svcName := strings.Join(parts[2:], ".")
+	ips, err := r.LookupIP(ctx, "ip", svcName[:len(svcName)-1])
+	if err != nil || len(ips) < 1 {
+		return ""
+	}
+	names, err := r.LookupAddr(ctx, ips[0].String())
+	if err != nil || len(names) < 1 {
+		return ""
+	}
+	fqn := names[0]
+	ix := strings.Index(fqn, svcName)
+	if ix < 0 {
+		return ""
+	}
+	fqn = parts[0] + "." + parts[1] + "." + fqn[ix:]
+	return fqn
 }
