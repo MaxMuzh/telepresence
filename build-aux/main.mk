@@ -80,10 +80,6 @@ generate: $(tools/go-mkopensource) $(BUILDDIR)/$(shell go env GOVERSION).src.tar
 
 	rm -rf vendor
 
-.PHONY: clean
-clean:
-	rm -f ./pkg/client/userd/fuseftp.bits
-
 .PHONY: generate-clean
 generate-clean: ## (Generate) Delete generated files
 	rm -rf ./rpc/vendor
@@ -114,7 +110,10 @@ endif
 
 FUSEFTP_VERSION=$(shell go list -m -f {{.Version}} github.com/datawire/go-fuseftp)
 
-pkg/client/userd/fuseftp.bits:
+pkg/client/userd/fuseftp.bits: $(BUILDDIR)/fuseftp-$(GOOS)-$(GOARCH)$(BEXE) FORCE
+	cp $< $@
+
+$(BUILDDIR)/fuseftp-$(GOOS)-$(GOARCH)$(BEXE): go.mod
 	curl --fail -L https://github.com/datawire/go-fuseftp/releases/download/$(FUSEFTP_VERSION)/fuseftp-$(GOOS)-$(GOARCH)$(BEXE) -o $@
 
 build-deps: pkg/client/userd/fuseftp.bits
