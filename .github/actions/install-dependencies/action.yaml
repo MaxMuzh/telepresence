@@ -38,6 +38,9 @@ runs:
           # Add current user to the docker group
           sudo groupadd docker
           sudo usermod -aG docker $USER
+
+          #Install build essentials
+          sudo apt-get install -y make jq build-essential
         fi
     - if: runner.os == 'macOS'
       name: install macOS dependencies
